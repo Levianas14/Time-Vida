@@ -1,24 +1,31 @@
-﻿# Tempo Vivo
+# Tempo Vivo
 
-Aplicativo Flutter para planejamento de rotina, divisão de atividades e métodos de estudo e gestão do tempo.
+Aplicativo Flutter de agenda e gestão de tempo, com interface adaptável para celular e tablets.
 
-## Métodos implementados
+## O que já funciona
 
-- **Time Blocking:** agenda semanal por dia, blocos com duração, categoria e etapas.
-- **Repetição espaçada e recuperação ativa:** cadastro de assuntos, data de revisão, pergunta de evocação, resposta sem consulta e reagendamento em intervalos escolhidos.
-- **Pomodoro e Flowtime:** ciclos configuráveis de foco e pausa, ou sessão livre até um ponto natural de descanso.
-- **Três prioridades:** lista diária editável e marcável.
-- **Matriz de Eisenhower:** classificação de tarefas por urgência e importância nos quatro quadrantes.
-- **Planejamento semanal:** navegação pelos dias e plano editável “se… então…” para imprevistos.
-- **Temas:** aparência clara em tons suaves e aparência escura, selecionáveis nas preferências.
-- **Som de término:** seleção de arquivo de áudio do aparelho, cópia para armazenamento privado do app e prévia de reprodução.
+- Agenda mensal interativa com seleção de data, eventos editáveis, horário, anotações, conclusão e lembrete.
+- Blocos semanais recorrentes para organizar aulas, estudo, trabalho e descanso, com etapas e marcação de conclusão.
+- Persistência local de eventos, blocos, prioridades, revisões, matriz, tema e preferências de som.
+- Notificações locais para eventos e fim dos períodos de foco/pausa do Pomodoro, inclusive quando o sistema suspende o app (sujeitas à configuração nativa, permissões e políticas de economia de bateria do aparelho).
+- Pomodoro configurável, Flowtime, três prioridades, matriz de Eisenhower, revisão espaçada com recuperação ativa e plano “se… então…”.
+- Seleção, prévia e remoção de áudio para reprodução quando a sessão termina com o app aberto.
+- Tema claro em cores suaves e tema escuro.
 
-## Como abrir
+## Abrir o projeto
 
-1. Instale o Flutter SDK e um editor compatível, como Android Studio ou VS Code.
-2. Na pasta do projeto, execute `flutter pub get`.
-3. Execute `flutter run` com um emulador ou aparelho conectado.
+Este repositório contém o código Dart, mas ainda não tem os diretórios nativos Android/iOS de um projeto Flutter completo. Com o Flutter SDK instalado, gere os arquivos de plataforma uma vez:
 
-Nas preferências, em **Som de término**, toque no ícone de pasta para escolher um arquivo de áudio suportado pelo aparelho. Use **Testar som** para ouvir a prévia. O app guarda uma cópia na área privada do aplicativo e usa esse som ao terminar o Pomodoro ou encerrar uma sessão Flowtime. A reprodução durante o app fechado ainda requer configurar notificações e serviço de áudio em segundo plano.
+```sh
+flutter create --platforms=android,ios .
+flutter pub get
+flutter run
+```
 
-O layout reorganiza agenda, matriz e painel de foco conforme a largura disponível e acompanha a rotação do aparelho. As atividades e preferências ainda não são persistidas entre execuções; alarmes em segundo plano também exigem integração de notificações. O ambiente desta edição não tem Flutter/Dart disponível, então a compilação não pôde ser validada aqui.
+Para notificações agendadas no Android, depois de gerar a pasta `android`, inclua em `android/app/src/main/AndroidManifest.xml` a permissão `android.permission.RECEIVE_BOOT_COMPLETED` e os receptores `ScheduledNotificationReceiver` e `ScheduledNotificationBootReceiver` descritos na documentação do `flutter_local_notifications`. A versão usada também exige core library desugaring e `compileSdk` 35 ou superior. O app usa agendamento não exato para evitar pedir acesso especial a alarmes exatos; o Android pode atrasar a entrega por economia de bateria. A permissão de notificações é solicitada em tempo de execução.
+
+## Sobre os sons em segundo plano
+
+O áudio escolhido pelo usuário é reproduzido ao concluir uma sessão enquanto o app está ativo. Com o app fechado/suspenso, o sistema operacional controla o som da notificação; Android e iOS não permitem que um app use diretamente qualquer música escolhida como som de notificação sem instalação/configuração nativa do áudio. A notificação agendada usa o som padrão do sistema. Um Flowtime não tem término previsto, então recebe aviso sonoro quando a pessoa encerra a sessão no app.
+
+O código não foi compilado nesta máquina porque Flutter/Dart não estão instalados no ambiente de edição.
