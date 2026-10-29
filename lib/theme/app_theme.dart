@@ -42,24 +42,41 @@ class AppPalette {
   );
 
   static const light = AppPalette(
-    background: Color(0xFFF7F8F5),
-    navigation: Color(0xFFF0F4F1),
-    surface: Color(0xFFFFFEFC),
-    elevated: Color(0xFFEDF2F5),
-    border: Color(0xFFD5DFE4),
-    primary: Color(0xFF216D5E),
-    primaryHover: Color(0xFF19594D),
-    secondary: Color(0xFF345F9A),
-    text: Color(0xFF22313F),
-    muted: Color(0xFF536376),
-    warning: Color(0xFF865913),
-    error: Color(0xFFAD3548),
+    background: Color(0xFFF7F9FC),
+    navigation: Color(0xFFF1F5F9),
+    surface: Color(0xFFFFFFFF),
+    elevated: Color(0xFFF0F5F9),
+    border: Color(0xFFDCE4ED),
+    primary: Color(0xFF087D6F),
+    primaryHover: Color(0xFF086456),
+    secondary: Color(0xFF3975D7),
+    text: Color(0xFF1C2938),
+    muted: Color(0xFF586779),
+    warning: Color(0xFFB77122),
+    error: Color(0xFFC54755),
     onAccent: Color(0xFFFFFFFF),
     control: Color(0xFF6A7D8C),
   );
 }
 
 class AppTheme {
+  // Keep brand tokens intact; derive text inks that meet AA on each surface.
+  static Color readableInk(Color color, Color background) {
+    double ratio(Color a, Color b) {
+      final x = a.computeLuminance(), y = b.computeLuminance();
+      return ((x > y ? x : y) + .05) / ((x < y ? x : y) + .05);
+    }
+
+    final target = background.computeLuminance() > .5
+        ? Colors.black
+        : Colors.white;
+    for (var step = 0; step <= 100; step++) {
+      final ink = Color.lerp(color, target, step / 100)!;
+      if (ratio(ink, background) >= 4.5) return ink;
+    }
+    return target;
+  }
+
   static const radius = 14.0;
   static const transition = Duration(milliseconds: 180);
 
@@ -89,14 +106,14 @@ class AppTheme {
           primary: p.primary,
           onPrimary: p.onAccent,
           primaryContainer: selected,
-          onPrimaryContainer: p.primary,
-          secondary: p.secondary,
+          onPrimaryContainer: readableInk(p.primary, selected),
+          secondary: readableInk(p.secondary, p.elevated),
           onSecondary: p.onAccent,
           secondaryContainer: p.elevated,
           onSecondaryContainer: p.text,
-          tertiary: p.warning,
+          tertiary: readableInk(p.warning, p.elevated),
           onTertiary: p.onAccent,
-          error: p.error,
+          error: readableInk(p.error, p.elevated),
           onError: p.onAccent,
           surface: p.surface,
           onSurface: p.text,
@@ -285,7 +302,7 @@ class AppTheme {
             (states) => states.contains(WidgetState.disabled)
                 ? p.muted.withValues(alpha: .45)
                 : states.contains(WidgetState.selected)
-                ? p.primary
+                ? scheme.onPrimaryContainer
                 : p.muted,
           ),
           side: WidgetStateProperty.resolveWith(
@@ -314,7 +331,7 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: p.navigation,
+        fillColor: dark ? p.navigation : p.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 16,
@@ -395,7 +412,9 @@ class AppTheme {
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => text.labelMedium?.copyWith(
-            color: states.contains(WidgetState.selected) ? p.primary : p.muted,
+            color: states.contains(WidgetState.selected)
+                ? scheme.onPrimaryContainer
+                : p.muted,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
@@ -409,7 +428,9 @@ class AppTheme {
         indicatorColor: selected,
         selectedIconTheme: IconThemeData(color: p.primary),
         unselectedIconTheme: IconThemeData(color: p.muted),
-        selectedLabelTextStyle: text.labelLarge?.copyWith(color: p.primary),
+        selectedLabelTextStyle: text.labelLarge?.copyWith(
+          color: scheme.onPrimaryContainer,
+        ),
         unselectedLabelTextStyle: text.labelLarge?.copyWith(color: p.muted),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(

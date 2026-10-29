@@ -28,4 +28,12 @@ Para notificações agendadas no Android, depois de gerar a pasta `android`, inc
 
 O áudio escolhido pelo usuário é reproduzido ao concluir uma sessão enquanto o app está ativo. Com o app fechado/suspenso, o sistema operacional controla o som da notificação; Android e iOS não permitem que um app use diretamente qualquer música escolhida como som de notificação sem instalação/configuração nativa do áudio. A notificação agendada usa o som padrão do sistema. Um Flowtime não tem término previsto, então recebe aviso sonoro quando a pessoa encerra a sessão no app.
 
-O código não foi compilado nesta máquina porque Flutter/Dart não estão instalados no ambiente de edição.
+## Aparência
+
+Os temas Claro, Escuro e Sistema compartilham tipografia Inter local, dimensões e componentes. A paleta fica em `lib/theme/app_theme.dart`; cores de texto derivadas mantêm contraste mínimo de 4,5:1 nas superfícies verificadas. Os campos claros usam fundo branco, com foco destacado e bordas funcionais contrastantes.
+
+Em Preferências → Aparência e foco, a escolha é aplicada imediatamente e salva no dispositivo. Sem uma escolha salva, o app acompanha o tema do sistema, inclusive mudanças enquanto está aberto. Selecionar Sistema remove a escolha explícita. Preferências antigas de tema continuam compatíveis.
+
+A navegação adapta-se à largura disponível, mantendo os layouts vertical e horizontal. Transições de 180 ms respeitam a preferência por movimento reduzido.
+
+Validação: nove testes Flutter passaram (contraste, movimento reduzido, troca de tema, persistência e telas de 320 a 1440 px). A análise estática não encontrou erros, mas há recomendações de estilo no código. Não foi gerado APK; notificações e áudio em aparelho real dependem da configuração nativa descrita acima.

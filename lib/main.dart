@@ -18,6 +18,11 @@ final notifications = FlutterLocalNotificationsPlugin();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final preferences = await SharedPreferences.getInstance();
+  final savedTheme = preferences.getBool('tempo_vivo_dark');
+  _themeMode.value = savedTheme == null
+      ? ThemeMode.system
+      : (savedTheme ? ThemeMode.dark : ThemeMode.light);
   tz_data.initializeTimeZones();
   try {
     final deviceZone = await FlutterTimezone.getLocalTimezone();
@@ -63,7 +68,7 @@ Future<void> scheduleReminder({
   );
 }
 
-final _themeMode = ValueNotifier<ThemeMode>(ThemeMode.light);
+final _themeMode = ValueNotifier<ThemeMode>(ThemeMode.system);
 
 class TempoVivoApp extends StatelessWidget {
   const TempoVivoApp({super.key});
@@ -272,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   bool _flowPaused = false;
   bool _flowSoundPlayed = false;
   bool _soundEnabled = true;
-  bool _darkMode = false;
+  ThemeMode _appearance = ThemeMode.system;
   String _soundName = 'Som suave';
   String? _soundPath;
   String? _savedSoundPath;
@@ -412,8 +417,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           }),
         );
       }
-      _darkMode = prefs.getBool('tempo_vivo_dark') ?? false;
-      _themeMode.value = _darkMode ? ThemeMode.dark : ThemeMode.light;
+      final savedTheme = prefs.getBool('tempo_vivo_dark');
+      _appearance = savedTheme == null
+          ? ThemeMode.system
+          : (savedTheme ? ThemeMode.dark : ThemeMode.light);
+      _themeMode.value = _appearance;
       _soundEnabled = prefs.getBool('tempo_vivo_sound_enabled') ?? true;
       _soundName = prefs.getString('tempo_vivo_sound_name') ?? 'Som suave';
       _focusMinutes = prefs.getInt('tempo_vivo_focus_minutes') ?? 25;
@@ -517,7 +525,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             .toList(),
       ),
     );
-    await prefs.setBool('tempo_vivo_dark', _darkMode);
+    if (_appearance == ThemeMode.system) {
+      await prefs.remove('tempo_vivo_dark');
+    } else {
+      await prefs.setBool('tempo_vivo_dark', _appearance == ThemeMode.dark);
+    }
     await prefs.setBool('tempo_vivo_sound_enabled', _soundEnabled);
     await prefs.setString('tempo_vivo_sound_name', _soundName);
     await prefs.setInt('tempo_vivo_focus_minutes', _focusMinutes);
@@ -896,27 +908,33 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   Text(
                     'Aparência e foco',
-                    style: Theme.of(context).textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
-                  SegmentedButton<bool>(
+                  SegmentedButton<ThemeMode>(
                     direction: MediaQuery.textScalerOf(context).scale(14) > 20
                         ? Axis.vertical
                         : Axis.horizontal,
                     segments: const [
                       ButtonSegment(
-                        value: false,
+                        value: ThemeMode.light,
                         label: Text('Claro'),
                         icon: Icon(Icons.light_mode_outlined),
                       ),
                       ButtonSegment(
-                        value: true,
+                        value: ThemeMode.dark,
                         label: Text('Escuro'),
                         icon: Icon(Icons.dark_mode_outlined),
                       ),
+                      ButtonSegment(
+                        value: ThemeMode.system,
+                        label: Text('Sistema'),
+                        icon: Icon(Icons.brightness_auto_outlined),
+                      ),
                     ],
-                    selected: {_darkMode},
+                    selected: {_appearance},
                     onSelectionChanged: (value) {
                       _setAppearance(value.first);
                       updateSheet(() {});
@@ -925,8 +943,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   const SizedBox(height: 12),
                   Text(
                     'Sessões de foco',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
@@ -1076,9 +1095,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     ],
   );
 
-  void _setAppearance(bool dark) {
-    setState(() => _darkMode = dark);
-    _themeMode.value = dark ? ThemeMode.dark : ThemeMode.light;
+  void _setAppearance(ThemeMode mode) {
+    setState(() => _appearance = mode);
+    _themeMode.value = mode;
     _saveEvents();
   }
 
@@ -1106,10 +1125,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ),
           actions: [
             IconButton(
-              tooltip: _darkMode ? 'Usar tema claro' : 'Usar tema escuro',
-              onPressed: () => _setAppearance(!_darkMode),
+              tooltip: Theme.of(context).brightness == Brightness.dark
+                  ? 'Usar tema claro'
+                  : 'Usar tema escuro',
+              onPressed: () => _setAppearance(
+                Theme.of(context).brightness == Brightness.dark
+                    ? ThemeMode.light
+                    : ThemeMode.dark,
+              ),
               icon: Icon(
-                _darkMode
+                Theme.of(context).brightness == Brightness.dark
                     ? Icons.light_mode_outlined
                     : Icons.dark_mode_outlined,
               ),
@@ -1277,9 +1302,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHigh,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.surfaceContainerHigh,
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
@@ -1335,14 +1360,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       children: [
         Text(
           'Blocos de hoje',
-          style: Theme.of(context).textTheme.headlineSmall
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
           '${_weekday(now.weekday)}, ${now.day} de ${_month(now.month)}',
-          style: Theme.of(context).textTheme.bodyLarge
-              ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 12),
         _priorityCard(compact: true),
@@ -1445,8 +1472,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             ),
                             child: Text(
                               activity.category,
-                              style: Theme.of(context).textTheme.labelSmall
-                                  ?.copyWith(color: accent),
+                              style: Theme.of(
+                                context,
+                              ).textTheme.labelSmall?.copyWith(color: accent),
                             ),
                           ),
                         ],
@@ -1513,8 +1541,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               ),
               Text(
                 '${_priorities.where((p) => p.done).length}/3',
-                style: Theme.of(context).textTheme.labelLarge
-                    ?.copyWith(color: Theme.of(context).colorScheme.primary),
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
               ),
             ],
           ),
@@ -1595,8 +1624,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: Text(
                       _flowMode ? 'Flowtime' : 'Pomodoro',
-                      style: Theme.of(context).textTheme.titleLarge
-                          ?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -1661,9 +1691,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             60),
                           strokeWidth: 9,
                           strokeCap: StrokeCap.round,
-                          backgroundColor: Theme.of(context)
-                              .colorScheme
-                              .surfaceContainerHighest,
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
                           color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
@@ -1696,9 +1726,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                             style: Theme.of(context).textTheme.labelLarge
                                 ?.copyWith(
                                   letterSpacing: 2,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                           ),
                         ],
@@ -1787,8 +1817,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Expanded(
                   child: Text(
                     'Revisão espaçada',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -1971,8 +2002,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Expanded(
                 child: Text(
                   'Aprendizagem com prática',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
@@ -2046,8 +2078,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   Expanded(
                     child: Text(
                       TimeOfDay.fromDateTime(event.startsAt).format(context),
-                      style: Theme.of(context).textTheme.labelLarge
-                          ?.copyWith(color: colors.secondary),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelLarge?.copyWith(color: colors.secondary),
                     ),
                   ),
                   IconButton(
@@ -2132,8 +2165,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       children: [
         Text(
           'Agenda',
-          style: Theme.of(context).textTheme.headlineMedium
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
         Text(
@@ -2173,8 +2207,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         const SizedBox(height: 24),
         Text(
           'Blocos semanais',
-          style: Theme.of(context).textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
         Text(
@@ -2242,8 +2277,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Expanded(
                 child: Text(
                   'Plano “se… então…”',
-                  style: Theme.of(context).textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               IconButton(
@@ -2277,8 +2313,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         children: [
           Text(
             'Revisão da semana',
-            style: Theme.of(context).textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 7),
           Text(
@@ -2294,8 +2331,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     children: [
       Text(
         'Métodos de gestão do tempo',
-        style: Theme.of(context).textTheme.headlineMedium
-            ?.copyWith(fontWeight: FontWeight.bold),
+        style: Theme.of(
+          context,
+        ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 6),
       Text(
@@ -2359,8 +2397,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 Expanded(
                   child: Text(
                     'Matriz de Eisenhower',
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 IconButton(
@@ -2413,9 +2452,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                       Text(
                                         'Sem tarefas',
                                         style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                           fontSize: 12,
                                         ),
                                       ),
@@ -2428,9 +2467,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                             ),
                                             child: Text(
                                               '• ${task.title}',
-                                              style: Theme.of(context)
-                                                  .textTheme
-                                                  .bodyMedium,
+                                              style: Theme.of(
+                                                context,
+                                              ).textTheme.bodyMedium,
                                             ),
                                           ),
                                         )
