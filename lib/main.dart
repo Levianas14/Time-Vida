@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'theme/app_theme.dart';
+import 'storage/preference_store.dart';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -284,6 +285,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   final AudioPlayer _audioPlayer = AudioPlayer();
   String _ifThen =
       'Se eu chegar tarde, farei 20 minutos de revisão em vez de cancelar o estudo.';
+  final _preferences = PreferenceStore();
   Timer? _timer;
   final _timerWatch = Stopwatch();
 
@@ -342,7 +344,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     final prefs = await SharedPreferences.getInstance();
     try {
       final rawEvents = prefs.getString('tempo_vivo_events_v1');
-      if (rawEvents != null)
+      if (rawEvents != null) {
         _events.addAll(
           (jsonDecode(rawEvents) as List<dynamic>).map((item) {
             final map = item as Map<String, dynamic>;
@@ -356,6 +358,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             );
           }),
         );
+      }
       final rawActivities = prefs.getString('tempo_vivo_activities_v1');
       if (rawActivities != null) {
         _activities.clear();
@@ -450,97 +453,75 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _saveEvents() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      'tempo_vivo_events_v1',
-      jsonEncode(
-        _events
-            .map(
-              (event) => {
-                'id': event.id,
-                'title': event.title,
-                'startsAt': event.startsAt.toIso8601String(),
-                'note': event.note,
-                'done': event.done,
-                'reminder': event.reminder,
-              },
-            )
-            .toList(),
-      ),
-    );
-    await prefs.setString(
-      'tempo_vivo_activities_v1',
-      jsonEncode(
-        _activities
-            .map(
-              (a) => {
-                'title': a.title,
-                'category': a.category,
-                'sh': a.start.hour,
-                'sm': a.start.minute,
-                'eh': a.end.hour,
-                'em': a.end.minute,
-                'color': a.color.value,
-                'done': a.done,
-                'weekday': a.weekday,
-                'steps': a.steps,
-              },
-            )
-            .toList(),
-      ),
-    );
-    await prefs.setString(
-      'tempo_vivo_reviews_v1',
-      jsonEncode(
-        _reviews
-            .map(
-              (r) => {
-                'topic': r.topic,
-                'due': r.due.toIso8601String(),
-                'prompt': r.prompt,
-                'done': r.done,
-              },
-            )
-            .toList(),
-      ),
-    );
-    await prefs.setString(
-      'tempo_vivo_priorities_v1',
-      jsonEncode(
-        _priorities.map((p) => {'title': p.title, 'done': p.done}).toList(),
-      ),
-    );
-    await prefs.setString(
-      'tempo_vivo_matrix_v1',
-      jsonEncode(
-        _eisenhower
-            .map(
-              (task) => {
-                'title': task.title,
-                'urgent': task.urgent,
-                'important': task.important,
-              },
-            )
-            .toList(),
-      ),
-    );
-    if (_appearance == ThemeMode.system) {
-      await prefs.remove('tempo_vivo_dark');
-    } else {
-      await prefs.setBool('tempo_vivo_dark', _appearance == ThemeMode.dark);
-    }
-    await prefs.setBool('tempo_vivo_sound_enabled', _soundEnabled);
-    await prefs.setString('tempo_vivo_sound_name', _soundName);
-    await prefs.setInt('tempo_vivo_focus_minutes', _focusMinutes);
-    await prefs.setInt('tempo_vivo_break_minutes', _breakMinutes);
-    await prefs.setString('tempo_vivo_if_then', _ifThen);
-    if (_soundPath != null)
-      await prefs.setString('tempo_vivo_sound_path', _soundPath!);
-    else
-      await prefs.remove('tempo_vivo_sound_path');
-  }
-
+  Future<void> _saveEvents() => _preferences.save({
+    'tempo_vivo_events_v1': jsonEncode(
+      _events
+          .map(
+            (event) => {
+              'id': event.id,
+              'title': event.title,
+              'startsAt': event.startsAt.toIso8601String(),
+              'note': event.note,
+              'done': event.done,
+              'reminder': event.reminder,
+            },
+          )
+          .toList(),
+    ),
+    'tempo_vivo_activities_v1': jsonEncode(
+      _activities
+          .map(
+            (a) => {
+              'title': a.title,
+              'category': a.category,
+              'sh': a.start.hour,
+              'sm': a.start.minute,
+              'eh': a.end.hour,
+              'em': a.end.minute,
+              'color': a.color.toARGB32(),
+              'done': a.done,
+              'weekday': a.weekday,
+              'steps': a.steps,
+            },
+          )
+          .toList(),
+    ),
+    'tempo_vivo_reviews_v1': jsonEncode(
+      _reviews
+          .map(
+            (r) => {
+              'topic': r.topic,
+              'due': r.due.toIso8601String(),
+              'prompt': r.prompt,
+              'done': r.done,
+            },
+          )
+          .toList(),
+    ),
+    'tempo_vivo_priorities_v1': jsonEncode(
+      _priorities.map((p) => {'title': p.title, 'done': p.done}).toList(),
+    ),
+    'tempo_vivo_matrix_v1': jsonEncode(
+      _eisenhower
+          .map(
+            (task) => {
+              'title': task.title,
+              'urgent': task.urgent,
+              'important': task.important,
+            },
+          )
+          .toList(),
+    ),
+    'tempo_vivo_dark': _appearance == ThemeMode.system
+        ? null
+        : _appearance == ThemeMode.dark,
+    'tempo_vivo_sound_enabled': _soundEnabled,
+    'tempo_vivo_sound_name': _soundName,
+    'tempo_vivo_focus_minutes': _focusMinutes,
+    'tempo_vivo_break_minutes': _breakMinutes,
+    'tempo_vivo_if_then': _ifThen,
+    'tempo_vivo_sound_path': _soundPath,
+  });
   String _time(TimeOfDay value) => value.format(context);
   String _clockFromSeconds(int seconds) =>
       '${(seconds ~/ 60).toString().padLeft(2, '0')}:${(seconds % 60).toString().padLeft(2, '0')}';
@@ -656,7 +637,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       await _audioPlayer.seek(Duration.zero);
       await _audioPlayer.play();
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -664,6 +645,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ),
           ),
         );
+      }
     }
   }
 
@@ -687,12 +669,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       _saveEvents();
       updateSheet(() {});
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Não foi possível guardar esse arquivo de áudio.'),
           ),
         );
+      }
     }
   }
 
@@ -708,12 +691,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       }
       if (mounted) setState(() {});
     } catch (_) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Não foi possível reproduzir este áudio.'),
           ),
         );
+      }
     }
   }
 
@@ -742,13 +726,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     if (event == null || !mounted) return;
     setState(() => _events.add(event));
     await _saveEvents();
-    if (event.reminder)
+    if (event.reminder) {
       await scheduleReminder(
         id: event.id,
         title: event.title,
         body: event.note.isEmpty ? 'Seu evento está começando.' : event.note,
         when: event.startsAt,
       );
+    }
   }
 
   Future<void> _editEvent(CalendarEvent event) async {
@@ -764,7 +749,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     });
     await notifications.cancel(id: event.id);
     await _saveEvents();
-    if (updated.reminder)
+    if (updated.reminder) {
       await scheduleReminder(
         id: updated.id,
         title: updated.title,
@@ -773,6 +758,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             : updated.note,
         when: updated.startsAt,
       );
+    }
   }
 
   Future<void> _toggleEvent(CalendarEvent event) async {
@@ -840,12 +826,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: Text('Cancelar'),
+            child: const Text('Cancelar'),
           ),
           FilledButton(
             onPressed: () =>
                 Navigator.pop(dialogContext, controller.text.trim()),
-            child: Text('Salvar'),
+            child: const Text('Salvar'),
           ),
         ],
       ),
@@ -949,7 +935,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   ),
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text('Avisos sonoros'),
+                    title: const Text('Avisos sonoros'),
                     value: _soundEnabled,
                     onChanged: (value) {
                       setState(() => _soundEnabled = value);
@@ -1760,7 +1746,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   OutlinedButton.icon(
                     onPressed: _resetTimer,
                     icon: const Icon(Icons.restart_alt),
-                    label: Text('Reiniciar'),
+                    label: const Text('Reiniciar'),
                   ),
                 ],
               ),
@@ -1870,14 +1856,14 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       color: Theme.of(context).colorScheme.primary,
                     ),
                     title: Text(review.topic),
-                    subtitle: Text('Revisão concluída'),
+                    subtitle: const Text('Revisão concluída'),
                     trailing: TextButton(
                       onPressed: () async {
                         final next = await showDialog<int>(
                           context: context,
                           animationStyle: AppTheme.motion(context),
                           builder: (dialogContext) => SimpleDialog(
-                            title: Text('Agendar próxima revisão'),
+                            title: const Text('Agendar próxima revisão'),
                             children: [1, 3, 7, 14, 30]
                                 .map(
                                   (days) => SimpleDialogOption(
@@ -1901,7 +1887,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           _saveEvents();
                         }
                       },
-                      child: Text('Reagendar'),
+                      child: const Text('Reagendar'),
                     ),
                   ),
                 ),
@@ -1939,11 +1925,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('Continuar depois'),
+            child: const Text('Continuar depois'),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text('Conferi minha resposta'),
+            child: const Text('Conferi minha resposta'),
           ),
         ],
       ),
@@ -1957,7 +1943,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         context: context,
         animationStyle: AppTheme.motion(context),
         builder: (dialogContext) => SimpleDialog(
-          title: Text('Quando revisar novamente?'),
+          title: const Text('Quando revisar novamente?'),
           children: [1, 3, 7, 14, 30]
               .map(
                 (days) => SimpleDialogOption(
@@ -2010,7 +1996,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
+          const Text(
             'Tente explicar o assunto sem olhar suas anotações. Depois, confira o que faltou e agende uma nova revisão.',
           ),
           const SizedBox(height: 8),
@@ -2170,7 +2156,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Escolha uma data, registre eventos e anotações e reserve blocos recorrentes para sua rotina.',
         ),
         const SizedBox(height: 10),
@@ -2195,9 +2181,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ),
         if (!_loaded) const LinearProgressIndicator(),
         if (datedEvents.isEmpty && _loaded)
-          Card(
+          const Card(
             child: Padding(
-              padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.all(16),
               child: Text(
                 'Nenhum evento nesta data. Toque em “Novo evento” para adicionar um compromisso ou uma anotação.',
               ),
@@ -2212,7 +2198,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
-        Text(
+        const Text(
           'Blocos recorrentes para aulas, estudo, trabalho, descanso e diversão.',
         ),
         const SizedBox(height: 14),
@@ -2318,7 +2304,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 7),
-          Text(
+          const Text(
             '1. Escolha os resultados importantes.\n2. Reserve blocos realistas na agenda.\n3. Inclua pausas e tempo livre.\n4. Prepare uma alternativa para imprevistos.\n5. Revise o plano no fim da semana.',
           ),
         ],
@@ -2336,7 +2322,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
       ),
       const SizedBox(height: 6),
-      Text(
+      const Text(
         'Use os métodos como ferramentas flexíveis. Escolha o que atende à tarefa e à sua energia.',
       ),
       const SizedBox(height: 16),
@@ -2487,7 +2473,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
             FilledButton.tonalIcon(
               onPressed: _addEisenhowerTask,
               icon: const Icon(Icons.add),
-              label: Text('Classificar tarefa'),
+              label: const Text('Classificar tarefa'),
             ),
           ],
         ),
@@ -2566,19 +2552,19 @@ class _EisenhowerQuestionDialogState extends State<_EisenhowerQuestionDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     scrollable: true,
-    title: Text('Classifique a tarefa'),
+    title: const Text('Classifique a tarefa'),
     content: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text('É urgente?'),
+          title: const Text('É urgente?'),
           value: urgent,
           onChanged: (value) => setState(() => urgent = value),
         ),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
-          title: Text('É importante?'),
+          title: const Text('É importante?'),
           value: important,
           onChanged: (value) => setState(() => important = value),
         ),
@@ -2587,11 +2573,11 @@ class _EisenhowerQuestionDialogState extends State<_EisenhowerQuestionDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text('Cancelar'),
+        child: const Text('Cancelar'),
       ),
       FilledButton(
         onPressed: () => Navigator.pop(context, (urgent, important)),
-        child: Text('Classificar'),
+        child: const Text('Classificar'),
       ),
     ],
   );
@@ -2678,7 +2664,7 @@ class _EventDialogState extends State<EventDialog> {
                   context: context,
                   initialTime: TimeOfDay.fromDateTime(_when),
                 );
-                if (time != null)
+                if (time != null) {
                   setState(
                     () => _when = DateTime(
                       date.year,
@@ -2688,6 +2674,7 @@ class _EventDialogState extends State<EventDialog> {
                       time.minute,
                     ),
                   );
+                }
               },
               icon: const Icon(Icons.schedule),
               label: Text(
@@ -2746,7 +2733,7 @@ class _ReviewDialogState extends State<ReviewDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     scrollable: true,
-    title: Text('Agendar revisão'),
+    title: const Text('Agendar revisão'),
     content: SizedBox(
       width: 420,
       child: Column(
@@ -2788,7 +2775,7 @@ class _ReviewDialogState extends State<ReviewDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text('Cancelar'),
+        child: const Text('Cancelar'),
       ),
       FilledButton(
         onPressed: () {
@@ -2802,7 +2789,7 @@ class _ReviewDialogState extends State<ReviewDialog> {
             ),
           );
         },
-        child: Text('Agendar'),
+        child: const Text('Agendar'),
       ),
     ],
   );
@@ -2847,7 +2834,7 @@ class _ActivityDialogState extends State<ActivityDialog> {
       context: context,
       initialTime: start ? _start : _end,
     );
-    if (picked != null)
+    if (picked != null) {
       setState(() {
         if (start) {
           _start = picked;
@@ -2855,11 +2842,12 @@ class _ActivityDialogState extends State<ActivityDialog> {
           _end = picked;
         }
       });
+    }
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: Text('Novo bloco de tempo'),
+    title: const Text('Novo bloco de tempo'),
     content: SizedBox(
       width: 440,
       child: SingleChildScrollView(
@@ -2977,7 +2965,7 @@ class _ActivityDialogState extends State<ActivityDialog> {
     actions: [
       TextButton(
         onPressed: () => Navigator.pop(context),
-        child: Text('Cancelar'),
+        child: const Text('Cancelar'),
       ),
       FilledButton(
         onPressed: () {
@@ -3008,7 +2996,7 @@ class _ActivityDialogState extends State<ActivityDialog> {
             ),
           );
         },
-        child: Text('Adicionar'),
+        child: const Text('Adicionar'),
       ),
     ],
   );

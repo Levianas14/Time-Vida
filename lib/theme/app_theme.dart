@@ -182,12 +182,15 @@ class AppTheme {
         .apply(fontFamily: 'Inter');
 
     Color? overlay(Set<WidgetState> states) {
-      if (states.contains(WidgetState.focused))
+      if (states.contains(WidgetState.focused)) {
         return p.primary.withValues(alpha: .18);
-      if (states.contains(WidgetState.pressed))
+      }
+      if (states.contains(WidgetState.pressed)) {
         return p.primary.withValues(alpha: .14);
-      if (states.contains(WidgetState.hovered))
+      }
+      if (states.contains(WidgetState.hovered)) {
         return p.primary.withValues(alpha: .08);
+      }
       return null;
     }
 
