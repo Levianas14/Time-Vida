@@ -293,12 +293,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       'Se eu chegar tarde, farei 20 minutos de revisão em vez de cancelar o estudo.';
   final _preferences = PreferenceStore();
   Timer? _timer;
+  // Only the focus panel listens to second-by-second updates.
+  final _timerUpdates = ValueNotifier<int>(0);
   final _timerWatch = Stopwatch();
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _timerUpdates.dispose();
     _timerWatch.stop();
     _audioPlayer.dispose();
     super.dispose();
@@ -538,7 +541,11 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
       if (_flowMode && !_flowPaused) {
-        setState(() => _flowElapsed = _timerWatch.elapsed.inSeconds);
+        final elapsed = _timerWatch.elapsed.inSeconds;
+        if (_flowElapsed != elapsed) {
+          _flowElapsed = elapsed;
+          _timerUpdates.value++;
+        }
       } else if (!_flowMode && _remaining <= 1) {
         _timer?.cancel();
         setState(() {
@@ -547,7 +554,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         });
         _finishPomodoro();
       } else if (!_flowMode) {
-        setState(() => _remaining--);
+        _remaining--;
+        _timerUpdates.value++;
       }
     });
   }
@@ -1615,7 +1623,12 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       ),
     ),
   );
-  Widget _focusPanel() => Column(
+  Widget _focusPanel() => ValueListenableBuilder<int>(
+    valueListenable: _timerUpdates,
+    builder: (context, tick, child) => _focusContent(),
+  );
+
+  Widget _focusContent() => Column(
     children: [
       Card(
         child: Padding(

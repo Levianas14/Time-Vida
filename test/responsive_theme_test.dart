@@ -5,11 +5,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tempo_vivo/main.dart';
 import 'package:tempo_vivo/theme/app_theme.dart';
+import 'package:timezone/data/latest_all.dart' as tz_data;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    tz_data.initializeTimeZones();
     AndroidFlutterLocalNotificationsPlugin.registerWith();
     SharedPreferences.setMockInitialValues({'tempo_vivo_dark': true});
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -18,6 +20,35 @@ void main() {
           (_) async => true,
         );
   });
+
+  testWidgets(
+    'timer ticks update focus without rebuilding dashboard statistics',
+    (tester) async {
+      await tester.pumpWidget(const TempoVivoApp());
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Iniciar'));
+      await tester.tap(find.text('Iniciar'));
+      await tester.pump();
+      final stats = tester.widget<Text>(find.text('Tempo planejado'));
+      expect(find.text('25:00'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 1));
+      expect(find.text('24:59'), findsOneWidget);
+      expect(
+        identical(stats, tester.widget<Text>(find.text('Tempo planejado'))),
+        isTrue,
+      );
+      await tester.tap(find.text('Pausar'));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 2));
+      expect(find.text('24:59'), findsOneWidget);
+      await tester.tap(find.text('Reiniciar'));
+      await tester.pump();
+      expect(find.text('25:00'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+    },
+  );
 
   testWidgets('system theme, saved override and reset persist', (tester) async {
     SharedPreferences.setMockInitialValues({});

@@ -1,7 +1,7 @@
 name: tempo_vivo
 description: Gerenciador pessoal de tempo, rotina e foco.
 publish_to: 'none'
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: '>=3.11.0 <4.0.0'

@@ -58,7 +58,7 @@ Em Preferências → Aparência e foco, a escolha é aplicada imediatamente e sa
 
 A navegação adapta-se à largura disponível, mantendo os layouts vertical e horizontal. Transições de 180 ms respeitam a preferência por movimento reduzido.
 
-Validação: 13 testes Flutter passaram (persistência, contraste, movimento reduzido, troca de tema e telas de 320 a 1440 px). A análise estática não encontrou problemas. Notificações, áudio e instalação ainda precisam de teste em aparelho Android real.
+Validação: 14 testes Flutter passaram (persistência, contraste, movimento reduzido, troca de tema e telas de 320 a 1440 px). A análise estática não encontrou problemas. Notificações, áudio e instalação ainda precisam de teste em aparelho Android real.
 
 ## Agenda e ajuda (1.0.1)
 
@@ -67,3 +67,7 @@ Validação: 13 testes Flutter passaram (persistência, contraste, movimento red
 - Criação de evento com botões separados para data e horário, orientação para nome obrigatório e confirmação ao salvar.
 - Nova aba Ajuda com início rápido, atalhos e explicações sobre agenda, foco, prioridades, revisões, sons e preferências.
 - Dados e chave de assinatura preservados para instalar a atualização sobre a versão anterior.
+
+## Otimização do cronômetro (1.0.2)
+
+As atualizações a cada segundo ficam limitadas ao painel de foco. A agenda e as estatísticas deixam de ser reconstruídas a cada tick; iniciar, pausar, reiniciar e concluir a sessão mantêm o comportamento anterior. Um teste verifica a contagem, a pausa, o reinício e a preservação dos widgets de estatísticas durante o tick.
