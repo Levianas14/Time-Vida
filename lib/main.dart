@@ -33,7 +33,7 @@ Future<void> main() async {
   }
   await notifications.initialize(
     settings: const InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      android: AndroidInitializationSettings('ic_notification'),
       iOS: DarwinInitializationSettings(
         requestAlertPermission: true,
         requestSoundPermission: true,

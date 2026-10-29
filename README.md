@@ -14,16 +14,36 @@ Aplicativo Flutter de agenda e gestão de tempo, com interface adaptável para c
 
 ## Abrir o projeto
 
-Este repositório contém o código Dart, mas ainda não tem os diretórios nativos Android/iOS de um projeto Flutter completo. Com o Flutter SDK instalado, gere os arquivos de plataforma uma vez:
+O projeto inclui a plataforma Android (Android 7.0/API 24 ou superior). Use Flutter, JDK 17 e Android SDK com plataforma 36 e NDK 28.2.13676358 instalados:
 
 ```sh
-flutter create --platforms=android,ios .
 flutter pub get
 flutter run
 ```
 
-Para notificações agendadas no Android, depois de gerar a pasta `android`, inclua em `android/app/src/main/AndroidManifest.xml` a permissão `android.permission.RECEIVE_BOOT_COMPLETED` e os receptores `ScheduledNotificationReceiver` e `ScheduledNotificationBootReceiver` descritos na documentação do `flutter_local_notifications`. A versão usada também exige core library desugaring e `compileSdk` 35 ou superior. O app usa agendamento não exato para evitar pedir acesso especial a alarmes exatos; o Android pode atrasar a entrega por economia de bateria. A permissão de notificações é solicitada em tempo de execução.
+O Manifest já inclui permissões de notificação, restauração após reinício e os receptores de lembretes. O Gradle habilita desugaring e redução de código/recursos no release. O app usa agendamento não exato; o Android pode atrasar lembretes por economia de bateria. A permissão de notificações é solicitada em tempo de execução. A plataforma iOS ainda não foi gerada.
 
+## APK Android
+
+Para repetir a validação e gerar o APK no PowerShell:
+
+```powershell
+./tools/build_apk.ps1
+# Ou informe o Flutter fora do PATH:
+./tools/build_apk.ps1 -Flutter 'C:/caminho/flutter/bin/flutter.bat'
+```
+
+Se o Windows bloquear scripts locais, execute `powershell -NoProfile -ExecutionPolicy Bypass -File ./tools/build_apk.ps1` (a opção vale apenas para esse processo).
+
+Configure `JAVA_HOME` e `ANDROID_HOME` com seus SDKs. As ferramentas preparadas nesta máquina estão em `%LOCALAPPDATA%/TempoVivoToolchain` (Java e Android SDK). O Flutter usado está em `%TEMP%/tempo-vivo-flutter-validation/flutter-stable`.
+
+O script executa análise, testes e build release; copia o resultado para `dist/tempo-vivo.apk` e grava seu SHA-256. O APK universal atende ARM de 32/64 bits e x86_64. Não é necessário publicar em uma loja para instalar o arquivo no aparelho.
+
+A assinatura de release usa `android/key.properties` e `android/tempo-vivo-release.jks`, gerados localmente e excluídos do Git. Faça backup privado dos dois arquivos: a mesma chave é necessária para instalar futuras atualizações sem desinstalar o app. Não compartilhe esses arquivos junto com o APK. Em outra máquina, restaure os arquivos ou configure sua própria chave com as propriedades `storeFile`, `storePassword`, `keyAlias` e `keyPassword`.
+
+## Otimizações
+
+A persistência captura os dados no momento da alteração, serializa gravações concorrentes e evita regravar valores idênticos, mantendo as chaves e os dados existentes. Componentes estáticos usam `const` e APIs depreciadas foram atualizadas. Os testes cobrem a ordem das gravações, remoção de preferências e recuperação após erro.
 ## Sobre os sons em segundo plano
 
 O áudio escolhido pelo usuário é reproduzido ao concluir uma sessão enquanto o app está ativo. Com o app fechado/suspenso, o sistema operacional controla o som da notificação; Android e iOS não permitem que um app use diretamente qualquer música escolhida como som de notificação sem instalação/configuração nativa do áudio. A notificação agendada usa o som padrão do sistema. Um Flowtime não tem término previsto, então recebe aviso sonoro quando a pessoa encerra a sessão no app.
@@ -36,4 +56,4 @@ Em Preferências → Aparência e foco, a escolha é aplicada imediatamente e sa
 
 A navegação adapta-se à largura disponível, mantendo os layouts vertical e horizontal. Transições de 180 ms respeitam a preferência por movimento reduzido.
 
-Validação: nove testes Flutter passaram (contraste, movimento reduzido, troca de tema, persistência e telas de 320 a 1440 px). A análise estática não encontrou erros, mas há recomendações de estilo no código. Não foi gerado APK; notificações e áudio em aparelho real dependem da configuração nativa descrita acima.
+Validação: 12 testes Flutter passaram (persistência, contraste, movimento reduzido, troca de tema e telas de 320 a 1440 px). A análise estática não encontrou problemas. Notificações, áudio e instalação ainda precisam de teste em aparelho Android real.
