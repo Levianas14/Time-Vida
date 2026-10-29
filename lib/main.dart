@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'theme/app_theme.dart';
+import 'screens/help_page.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'storage/preference_store.dart';
 
 import 'package:file_picker/file_picker.dart';
@@ -86,6 +88,9 @@ class TempoVivoApp extends StatelessWidget {
           valueListenable: _themeMode,
           builder: (context, mode, _) => MaterialApp(
             title: 'Tempo Vivo',
+            locale: const Locale('pt', 'BR'),
+            supportedLocales: const [Locale('pt', 'BR')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.build(Brightness.light, reduceMotion: reduceMotion),
             darkTheme: AppTheme.build(
@@ -266,12 +271,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   ];
 
   int _tab = 0;
+  bool _showWeeklyRoutine = false;
   int _focusMinutes = 25;
   int _breakMinutes = 5;
   int _remaining = 25 * 60;
   int _flowElapsed = 0;
   int _flowBreak = 5;
-  int _weeklyDay = DateTime.monday;
+  int _weeklyDay = DateTime.now().weekday;
   bool _running = false;
   bool _isBreak = false;
   bool _flowMode = false;
@@ -724,8 +730,17 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       builder: (_) => EventDialog(initialDate: _selectedDate),
     );
     if (event == null || !mounted) return;
-    setState(() => _events.add(event));
+    setState(() {
+      _events.add(event);
+      _selectedDate = DateUtils.dateOnly(event.startsAt);
+      _weeklyDay = event.startsAt.weekday;
+    });
     await _saveEvents();
+    if (mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Evento salvo na agenda.')));
+    }
     if (event.reminder) {
       await scheduleReminder(
         id: event.id,
@@ -1161,6 +1176,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       icon: Icon(Icons.lightbulb_outline),
                       label: Text('Métodos'),
                     ),
+                    NavigationRailDestination(
+                      icon: Icon(Icons.help_outline),
+                      label: Text('Ajuda'),
+                    ),
                   ],
                 ),
                 const VerticalDivider(width: 1),
@@ -1211,6 +1230,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                   NavigationDestination(
                     icon: Icon(Icons.lightbulb_outline),
                     label: 'Métodos',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.help_outline),
+                    label: 'Ajuda',
                   ),
                 ],
               ),
@@ -2014,10 +2037,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   Widget _otherTab() => Center(
     child: SingleChildScrollView(
+      key: ValueKey(_tab),
       padding: const EdgeInsets.all(20),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 760),
-        child: _tab == 1 ? _weekPage() : _methodsPage(),
+        child: switch (_tab) {
+          1 => _weekPage(),
+          2 => _methodsPage(),
+          _ => HelpPage(onNavigate: (index) => setState(() => _tab = index)),
+        },
       ),
     ),
   );
@@ -2129,6 +2157,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     );
   }
 
+  void _selectAgendaDate(DateTime date) {
+    setState(() {
+      _selectedDate = DateUtils.dateOnly(date);
+      _weeklyDay = date.weekday;
+    });
+  }
+
   Widget _weekPage() {
     final days = List.generate(7, (index) => index + 1);
     final dayItems =
@@ -2156,93 +2191,181 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Escolha uma data, registre eventos e anotações e reserve blocos recorrentes para sua rotina.',
-        ),
+        const Text('Escolha um dia para ver ou adicionar seus compromissos.'),
         const SizedBox(height: 10),
-        Card(
-          child: CalendarDatePicker(
-            initialDate: _selectedDate,
-            firstDate: DateTime(2020),
-            lastDate: DateTime(2100),
-            onDateChanged: (date) => setState(() {
-              _selectedDate = DateUtils.dateOnly(date);
-              _weeklyDay = date.weekday;
-            }),
-          ),
-        ),
-        _sectionAction(
-          'Eventos · ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-          FilledButton.tonalIcon(
-            onPressed: _addEvent,
-            icon: const Icon(Icons.event_note_outlined),
-            label: const Text('Novo evento'),
-          ),
-        ),
-        if (!_loaded) const LinearProgressIndicator(),
-        if (datedEvents.isEmpty && _loaded)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text(
-                'Nenhum evento nesta data. Toque em “Novo evento” para adicionar um compromisso ou uma anotação.',
-              ),
+        SegmentedButton<bool>(
+          direction: MediaQuery.textScalerOf(context).scale(14) > 20
+              ? Axis.vertical
+              : Axis.horizontal,
+          segments: const [
+            ButtonSegment(
+              value: false,
+              label: Text('Eventos'),
+              icon: Icon(Icons.event_outlined),
             ),
-          ),
-        ...datedEvents.map(_eventCard),
-        const SizedBox(height: 24),
-        Text(
-          'Blocos semanais',
-          style: Theme.of(
-            context,
-          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'Blocos recorrentes para aulas, estudo, trabalho, descanso e diversão.',
-        ),
-        const SizedBox(height: 14),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: days
-                .map(
-                  (day) => Padding(
-                    padding: const EdgeInsets.only(right: 7),
-                    child: ChoiceChip(
-                      label: Text(_weekday(day).substring(0, 3)),
-                      selected: _weeklyDay == day,
-                      onSelected: (_) => setState(() => _weeklyDay = day),
-                    ),
-                  ),
-                )
-                .toList(),
-          ),
+            ButtonSegment(
+              value: true,
+              label: Text('Rotina semanal'),
+              icon: Icon(Icons.repeat),
+            ),
+          ],
+          selected: {_showWeeklyRoutine},
+          onSelectionChanged: (values) =>
+              setState(() => _showWeeklyRoutine = values.first),
         ),
         const SizedBox(height: 16),
-        _sectionAction(
-          _weekday(_weeklyDay),
-          FilledButton.tonalIcon(
-            onPressed: () => _addActivity(weekday: _weeklyDay),
-            icon: const Icon(Icons.add),
-            label: const Text('Adicionar bloco'),
-          ),
-        ),
-        const SizedBox(height: 12),
-        if (dayItems.isEmpty)
-          const Card(
-            child: Padding(
-              padding: EdgeInsets.all(20),
-              child: Text(
-                'Ainda sem blocos neste dia. Reserve um horário para algo importante e também para descansar.',
+        if (!_showWeeklyRoutine) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => _selectAgendaDate(DateTime.now()),
+                icon: const Icon(Icons.today_outlined),
+                label: const Text('Hoje'),
               ),
+              OutlinedButton(
+                onPressed: () {
+                  final now = DateTime.now();
+                  _selectAgendaDate(DateTime(now.year, now.month, now.day + 1));
+                },
+                child: const Text('Amanhã'),
+              ),
+              FilledButton.icon(
+                onPressed: _addEvent,
+                icon: const Icon(Icons.add),
+                label: const Text('Novo evento'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Card(
+            child: CalendarDatePicker(
+              key: ValueKey(_selectedDate),
+              initialDate: _selectedDate,
+              firstDate: DateTime(2020),
+              lastDate: DateTime(2100),
+              onDateChanged: _selectAgendaDate,
             ),
           ),
-        ...dayItems.map(_activityTile),
-        const SizedBox(height: 18),
-        _ifThenCard(),
-        const SizedBox(height: 18),
-        _weeklyGuidance(),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              IconButton(
+                tooltip: 'Dia anterior',
+                onPressed: _selectedDate.isAfter(DateTime(2020))
+                    ? () => _selectAgendaDate(
+                        DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month,
+                          _selectedDate.day - 1,
+                        ),
+                      )
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Expanded(
+                child: Semantics(
+                  liveRegion: true,
+                  child: Column(
+                    children: [
+                      Text(
+                        MaterialLocalizations.of(
+                          context,
+                        ).formatFullDate(_selectedDate),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${datedEvents.length} ${datedEvents.length == 1 ? 'evento' : 'eventos'}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Próximo dia',
+                onPressed: _selectedDate.isBefore(DateTime(2100))
+                    ? () => _selectAgendaDate(
+                        DateTime(
+                          _selectedDate.year,
+                          _selectedDate.month,
+                          _selectedDate.day + 1,
+                        ),
+                      )
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+          if (!_loaded) const LinearProgressIndicator(),
+          if (datedEvents.isEmpty && _loaded)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: Text(
+                  'Nenhum evento nesta data. Toque em “Novo evento” para adicionar um compromisso ou uma anotação.',
+                ),
+              ),
+            ),
+          ...datedEvents.map(_eventCard),
+        ] else ...[
+          const SizedBox(height: 8),
+          Text(
+            'Blocos semanais',
+            style: Theme.of(
+              context,
+            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Blocos recorrentes para aulas, estudo, trabalho, descanso e diversão.',
+          ),
+          const SizedBox(height: 14),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: days
+                  .map(
+                    (day) => Padding(
+                      padding: const EdgeInsets.only(right: 7),
+                      child: ChoiceChip(
+                        label: Text(_weekday(day).substring(0, 3)),
+                        selected: _weeklyDay == day,
+                        onSelected: (_) => setState(() => _weeklyDay = day),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _sectionAction(
+            _weekday(_weeklyDay),
+            FilledButton.tonalIcon(
+              onPressed: () => _addActivity(weekday: _weeklyDay),
+              icon: const Icon(Icons.add),
+              label: const Text('Adicionar bloco'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (dayItems.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'Ainda sem blocos neste dia. Reserve um horário para algo importante e também para descansar.',
+                ),
+              ),
+            ),
+          ...dayItems.map(_activityTile),
+          const SizedBox(height: 18),
+          _ifThenCard(),
+          const SizedBox(height: 18),
+          _weeklyGuidance(),
+        ],
       ],
     );
   }
@@ -2602,6 +2725,7 @@ class _EventDialogState extends State<EventDialog> {
   final _note = TextEditingController();
   late DateTime _when;
   bool _reminder = true;
+  bool _missingTitle = false;
   @override
   void initState() {
     super.initState();
@@ -2638,7 +2762,16 @@ class _EventDialogState extends State<EventDialog> {
             TextField(
               controller: _title,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Nome do evento'),
+              onChanged: (_) {
+                if (_missingTitle) setState(() => _missingTitle = false);
+              },
+              decoration: InputDecoration(
+                labelText: 'Nome do evento',
+                hintText: 'Ex.: Aula de inglês',
+                errorText: _missingTitle
+                    ? 'Escreva um nome para o evento.'
+                    : null,
+              ),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -2660,25 +2793,42 @@ class _EventDialogState extends State<EventDialog> {
                   lastDate: DateTime(2100),
                 );
                 if (date == null || !context.mounted) return;
+                setState(
+                  () => _when = DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    _when.hour,
+                    _when.minute,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.calendar_today_outlined),
+              label: Text(
+                'Data: ${MaterialLocalizations.of(context).formatCompactDate(_when)}',
+              ),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () async {
                 final time = await showTimePicker(
                   context: context,
                   initialTime: TimeOfDay.fromDateTime(_when),
                 );
-                if (time != null) {
-                  setState(
-                    () => _when = DateTime(
-                      date.year,
-                      date.month,
-                      date.day,
-                      time.hour,
-                      time.minute,
-                    ),
-                  );
-                }
+                if (time == null || !mounted) return;
+                setState(
+                  () => _when = DateTime(
+                    _when.year,
+                    _when.month,
+                    _when.day,
+                    time.hour,
+                    time.minute,
+                  ),
+                );
               },
               icon: const Icon(Icons.schedule),
               label: Text(
-                '${_when.day}/${_when.month}/${_when.year} · ${TimeOfDay.fromDateTime(_when).format(context)}',
+                'Horário: ${TimeOfDay.fromDateTime(_when).format(context)}',
               ),
             ),
             SwitchListTile(
@@ -2698,7 +2848,10 @@ class _EventDialogState extends State<EventDialog> {
       ),
       FilledButton(
         onPressed: () {
-          if (_title.text.trim().isEmpty) return;
+          if (_title.text.trim().isEmpty) {
+            setState(() => _missingTitle = true);
+            return;
+          }
           Navigator.pop(
             context,
             CalendarEvent(

@@ -50,10 +50,20 @@ O áudio escolhido pelo usuário é reproduzido ao concluir uma sessão enquanto
 
 ## Aparência
 
+O ícone de instalação é um relógio com ponteiros azuis (`#8CB8FF`). O original vetorial está em `assets/branding/app-icon.svg`, com prévia PNG no mesmo diretório. O Android usa uma versão adaptativa a partir da API 26 e PNGs por densidade nas versões anteriores. `tools/generate_icon.ps1` regenera os PNGs a partir da mesma geometria.
+
 Os temas Claro, Escuro e Sistema compartilham tipografia Inter local, dimensões e componentes. A paleta fica em `lib/theme/app_theme.dart`; cores de texto derivadas mantêm contraste mínimo de 4,5:1 nas superfícies verificadas. Os campos claros usam fundo branco, com foco destacado e bordas funcionais contrastantes.
 
 Em Preferências → Aparência e foco, a escolha é aplicada imediatamente e salva no dispositivo. Sem uma escolha salva, o app acompanha o tema do sistema, inclusive mudanças enquanto está aberto. Selecionar Sistema remove a escolha explícita. Preferências antigas de tema continuam compatíveis.
 
 A navegação adapta-se à largura disponível, mantendo os layouts vertical e horizontal. Transições de 180 ms respeitam a preferência por movimento reduzido.
 
-Validação: 12 testes Flutter passaram (persistência, contraste, movimento reduzido, troca de tema e telas de 320 a 1440 px). A análise estática não encontrou problemas. Notificações, áudio e instalação ainda precisam de teste em aparelho Android real.
+Validação: 13 testes Flutter passaram (persistência, contraste, movimento reduzido, troca de tema e telas de 320 a 1440 px). A análise estática não encontrou problemas. Notificações, áudio e instalação ainda precisam de teste em aparelho Android real.
+
+## Agenda e ajuda (1.0.1)
+
+- Agenda em português, com atalhos Hoje e Amanhã, navegação diária e contagem de eventos do dia selecionado.
+- Eventos em datas específicas e Rotina semanal separados para facilitar o planejamento.
+- Criação de evento com botões separados para data e horário, orientação para nome obrigatório e confirmação ao salvar.
+- Nova aba Ajuda com início rápido, atalhos e explicações sobre agenda, foco, prioridades, revisões, sons e preferências.
+- Dados e chave de assinatura preservados para instalar a atualização sobre a versão anterior.

@@ -78,11 +78,28 @@ void main() {
         find.byType(NavigationRail),
         size.width >= 900 ? findsOneWidget : findsNothing,
       );
-      for (final label in ['Agenda', 'Métodos']) {
+      for (final label in ['Agenda', 'Métodos', 'Ajuda']) {
         await tester.tap(find.text(label).first);
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }
+      await tester.ensureVisible(find.text('Abrir agenda'));
+      await tester.tap(find.text('Abrir agenda'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Amanhã'));
+      await tester.pumpAndSettle();
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+      expect(
+        tester
+            .widget<CalendarDatePicker>(find.byType(CalendarDatePicker))
+            .initialDate,
+        DateUtils.dateOnly(tomorrow),
+      );
+      await tester.tap(find.text('Rotina semanal'));
+      await tester.pumpAndSettle();
+      expect(find.byType(CalendarDatePicker), findsNothing);
+      expect(find.text('Adicionar bloco'), findsOneWidget);
+      expect(tester.takeException(), isNull);
       await tester.tap(find.byTooltip('Preferências'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
